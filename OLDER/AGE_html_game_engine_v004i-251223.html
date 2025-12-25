@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<!--
+html_game_engine
+v004h-251220 - Added ZX Spectrum BASIC support
+v004g-251219 - gridMatch = content.match(/ gridArray = (\[\s*[\s\S]*?\]);/); 
+v004f-251218 - Merged online +localversions
+v004e-251110 : playGame(),251217 test added export3dbutton (for online version)
+v004d-250420a Added Chess Demo
+v004c-250411a Added more demo links
+v004b-250409a Translate test 
+v004a-250408a : Themes : theme-container , age_theme_select.js (also can use age_theme_set_generator.php )
+v003d9-250407e :Added enemy2 , enemy3 ,item1 (ToDO : template sees them as obstacles-fix that )
+v003d8-250407d :Added game title change option
+v003d7: 250407c -added flaticon dropbox to select images + added a <table> 
+v003d6: popup window to test game after save
+v003d5: added ability to delete square (.)
+v003d4b - import imageURL also , v003d4b:added icon/demo links
+v003d3 - external html template
+v003c - 250405 on Iron, img ,import/exportworks. ToDo: in export template no colors
+v003b - 250405 initial- seem to work
+
+--> 
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{TITLE_PLACEHOLDER}</title>
+    <style>
+        body { font-family: monospace; background: #f4f4f4; }
+        #grid { display: grid; grid-template-columns: repeat(20, 20px); }
+        .cell { width: 20px; height: 20px; text-align: center; border: 1px solid #ccc; cursor: pointer; }
+        .player { background: lightblue; }
+        .enemy { background: lightcoral; }
+        .obstacle { background: lightgray; }
+        .goal { background: lightgreen; }
+        .gold { background: gold; }
+        .wall1 { background: darkgray; }
+        .wall2 { background: gray; }
+        #commands { margin-top: 20px; }
+        .legend { margin-top: 20px; }
+        .image-inputs { margin-top: 10px; }
+        img { width: 100%; height: 100%; }
+    </style>
+</head>
+<body>
+    <h1>{TITLE_PLACEHOLDER}</h1>
+    <div id="grid"></div>
+    <div id="commands">
+        <button onclick="playGame()">{PLAY_BUTTON_PLACEHOLDER}</button>
+        <button onclick="exportGame()">{EXPORT_BUTTON_PLACEHOLDER}</button>
+        <button onclick="exportGame(3)">{EXPORT_BUTTON_PLACEHOLDER}-3D</button>
+        <button onclick="exportGame(4)">{EXPORT_BUTTON_PLACEHOLDER}-ZXBasic</button>
+        <input type="file" id="import-file" accept=".html" />
+        <button onclick="importGame()">{IMPORT_BUTTON_PLACEHOLDER}</button>
+        <br>
+        <span>{CURRENT_SYMBOL_TEXT_PLACEHOLDER}: <span id="current-symbol">P</span></span>
+        <br>
+        <label for="symbol-select">{CHOOSE_SYMBOL_LABEL_PLACEHOLDER}:</label>        
+        <select id="symbol-select" onchange="changeSymbol()">
+            <option value="P">{PLAYER_LABEL_PLACEHOLDER} (P)</option>
+            <option value="E">{ENEMY_LABEL_PLACEHOLDER} (E)</option>
+            <option value="E2">{ENEMY2_LABEL_PLACEHOLDER} (E2)</option>
+            <option value="E3">{ENEMY3_LABEL_PLACEHOLDER} (E3)</option>
+            <option value="I1">{ITEM1_LABEL_PLACEHOLDER} (I1)</option>
+            <option value="#">{OBSTACLE_LABEL_PLACEHOLDER} (#)</option>
+            <option value="&">{GOAL_LABEL_PLACEHOLDER} (&)</option>
+            <option value="$">{GOLD_LABEL_PLACEHOLDER} ($)</option>
+            <option value="[">{WALL1_LABEL_PLACEHOLDER} ([)</option>
+            <option value="]">{WALL2_LABEL_PLACEHOLDER} (])</option>
+            <option value=".">{EMPTY_SQUARE_LABEL_PLACEHOLDER} (.)</option>
+        </select>
+
+        <label for="game-title">{GAME_TITLE_LABEL_PLACEHOLDER}:</label>
+            <input type="text" id="game-title" value="{DEFAULT_GAME_TITLE_PLACEHOLDER}" placeholder="{GAME_TITLE_PLACEHOLDER}">
+        <br>
+    </div>
+    <table border=1><tr><td>
+    <div class="legend">
+        <h3>{LEGEND_HEADING_PLACEHOLDER}:</h3>
+        <div>P = {PLAYER_LABEL_PLACEHOLDER}</div>
+        <div>E = {ENEMY_LABEL_PLACEHOLDER}</div>
+        <div>E2 = {ENEMY2_LABEL_PLACEHOLDER}</div>
+        <div>E3 = {ENEMY3_LABEL_PLACEHOLDER}</div>
+        <div>I = {ITEM1_LABEL_PLACEHOLDER}</div>
+        <div># = {OBSTACLE_LABEL_PLACEHOLDER}</div>
+        <div>& = {GOAL_LABEL_PLACEHOLDER}</div>
+        <div>$ = {GOLD_LABEL_PLACEHOLDER}</div>
+        <div>[ = {WALL1_LABEL_PLACEHOLDER}</div>
+        <div>] = {WALL2_LABEL_PLACEHOLDER}</div>
+    </div></td><td>
+    <div class="image-inputs">
+        <h3>{IMAGE_URLS_HEADING_PLACEHOLDER}:</h3>
+        <label for="player-url">{PLAYER_LABEL_PLACEHOLDER} (P):</label>
+        <input type="text" id="player-url" placeholder="{IMAGE_URL_PLACEHOLDER}">
+        <br>
+        <label for="enemy-url">{ENEMY_LABEL_PLACEHOLDER} (E):</label>
+        <input type="text" id="enemy-url" placeholder="{IMAGE_URL_PLACEHOLDER}">
+        <br>
+        <label for="enemy2-url">{ENEMY2_LABEL_PLACEHOLDER} (2):</label>
+        <input type="text" id="enemy2-url" placeholder="{IMAGE_URL_PLACEHOLDER}">
+        <br>
+        <label for="enemy3-url">{ENEMY3_LABEL_PLACEHOLDER} (3):</label>
+        <input type="text" id="enemy3-url" placeholder="{IMAGE_URL_PLACEHOLDER}">
+        <br>
+        <label for="item1-url">{ITEM1_LABEL_PLACEHOLDER}:</label>
+        <input type="text" id="item1-url" placeholder="{IMAGE_URL_PLACEHOLDER}">
+        <br>
+        <label for="obstacle-url">{OBSTACLE_LABEL_PLACEHOLDER} (#):</label>
+        <input type="text" id="obstacle-url" placeholder="{IMAGE_URL_PLACEHOLDER}">
+        <br>
+        <label for="goal-url">{GOAL_LABEL_PLACEHOLDER} (End Game) (&):</label>
+        <input type="text" id="goal-url" placeholder="{IMAGE_URL_PLACEHOLDER}">
+        <br>
+        <label for="gold-url">{GOLD_LABEL_PLACEHOLDER} ($):</label>
+        <input type="text" id="gold-url" placeholder="{IMAGE_URL_PLACEHOLDER}">
+        <br>
+        <label for="wall1-url">{WALL1_LABEL_PLACEHOLDER} ([):</label>
+        <input type="text" id="wall1-url" placeholder="{IMAGE_URL_PLACEHOLDER}">
+        <br>
+        <label for="wall2-url">{WALL2_LABEL_PLACEHOLDER} (]):</label>
+        <input type="text" id="wall2-url" placeholder="{IMAGE_URL_PLACEHOLDER}">
+        <br>
+        <br>{SOME_IMAGE_IDEAS_PLACEHOLDER} : <a href=flaticon/index2_tempbrowse.php target=_blank>{FLATICON_IMAGES_PLACEHOLDER}</a> ({PASTE_IMAGE_URL_PLACEHOLDER})
+        <br>{SEARCH_FOR_MORE_IMAGES_PLACEHOLDER} : <select id="iconSelect">        <!-- Options will be populated by JavaScript -->    </select>    <button id="visitButton">{VISIT_BUTTON_PLACEHOLDER}</button><br>
+    </div></td></tr>
+    <script>
+        const gridSize = 20;
+        let currentSymbol = 'P';
+        let gridArray = Array.from({ length: gridSize }, () => Array(gridSize).fill('.'));
+        let playerPosition = null;
+        let goldCollected = 0;
+        let images = {};
+
+
+        const gridElement = document.getElementById('grid');
+
+        // Initialize the grid
+        function initGrid() {
+            gridElement.innerHTML = '';
+            for (let row = 0; row < gridSize; row++) {
+                for (let col = 0; col < gridSize; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.onclick = () => placeSymbol(row, col);
+                    updateCell(row, col, cell);
+                    gridElement.appendChild(cell);
+                }
+            }
+            if (playerPosition) {
+                updatePlayerCell();
+            }
+        }
+
+        // Find player position function
+        function findPlayerPosition() {
+            for (let row = 0; row < gridSize; row++) {
+                for (let col = 0; col < gridSize; col++) {
+                    if (gridArray[row][col] === 'P') {
+                        return { x: col, y: row };
+                    }
+                }
+            }
+            return null;
+        }
+
+        // Place symbol on the grid
+        function placeSymbol(row, col) {
+            // If the current symbol is ".", remove the symbol (set it back to empty)
+            if (currentSymbol === '.') {
+                gridArray[row][col] = '.';
+            } else {
+                if (currentSymbol === 'P') {
+                    if (playerPosition) {
+                        gridArray[playerPosition.y][playerPosition.x] = '.';
+                    }
+                    playerPosition = { x: col, y: row };
+                }
+                gridArray[row][col] = currentSymbol;
+            }
+            initGrid();
+        }
+
+        // Update the cell display with image or character
+        function updateCell(row, col, cell) {
+            const symbol = gridArray[row][col];
+            const imgSrc = getSymbolImage(symbol);
+            cell.innerHTML = imgSrc ? `<img src="${imgSrc}" alt="${symbol}">` : symbol;
+            cell.className = 'cell ' + getClassNameForSymbol(symbol);
+        }
+
+        // Get the image URL for a symbol from the input fields
+        function getSymbolImage(symbol) {
+            switch (symbol) {
+                case 'P': return document.getElementById('player-url').value;
+                case 'E': return document.getElementById('enemy-url').value;
+                case 'E2': return document.getElementById('enemy2-url').value; // New enemy 2
+                case 'E3': return document.getElementById('enemy3-url').value; // New enemy 3
+                case 'I1': return document.getElementById('item1-url').value; // New enemy 3
+                case '#': return document.getElementById('obstacle-url').value;
+                case '&': return document.getElementById('goal-url').value;
+                case '$': return document.getElementById('gold-url').value;
+                case '[': return document.getElementById('wall1-url').value;
+                case ']': return document.getElementById('wall2-url').value;
+                default: return null; // No image, return null for text
+            }
+        }
+
+        function getClassNameForSymbol(symbol) {
+            switch (symbol) {
+                case 'P': return 'player';
+                case 'E': return 'enemy';
+                case 'E2': return 'enemy2'; // New enemy 2 class
+                case 'E3': return 'enemy3'; // New enemy 3 class
+                case 'I1': return 'item1'; // New enemy 3 class
+                case '#': return 'obstacle';
+                case '&': return 'goal';
+                case '$': return 'gold';
+                case '[': return 'wall1';
+                case ']': return 'wall2';
+                default: return '';
+            }
+        }
+
+        // Update the cell with player image or character
+        function updatePlayerCell() {
+            const cell = gridElement.children[playerPosition.y * gridSize + playerPosition.x];
+            const imgSrc = getSymbolImage('P');
+            cell.innerHTML = imgSrc ? `<img src="${imgSrc}" alt="P">` : 'P';
+            cell.className = 'cell player';
+        }
+
+        // Change current symbol
+        function changeSymbol() {
+            currentSymbol = document.getElementById('symbol-select').value;
+            document.getElementById('current-symbol').innerText = currentSymbol;
+        }
+
+        // Move player logic
+        function movePlayer(dx, dy) {
+            const newX = playerPosition.x + dx;
+            const newY = playerPosition.y + dy;
+
+            if (newX >= 0 && newX < gridSize && newY >= 0 && newY < gridSize) {
+                const targetCell = gridArray[newY][newX];
+                if (targetCell === '.' || targetCell === '&' || targetCell === '$') {
+                    if (targetCell === '$') {
+                        goldCollected++;
+                        console.log("gold=" + goldCollected);
+                    }
+                    gridArray[playerPosition.y][playerPosition.x] = '.';
+                    playerPosition.x = newX;
+                    playerPosition.y = newY;
+                    gridArray[playerPosition.y][playerPosition.x] = 'P';
+                    initGrid();
+                    if (targetCell === '&') {
+                        alert(`{WIN_MESSAGE_PLACEHOLDER}`.replace('{GOLD_COLLECTED}', goldCollected));
+                        goldCollected = 0; // Reset gold for a new game
+                    }
+                }
+            }
+        }
+
+        // Handle keyboard input for player movement
+        document.addEventListener('keydown', (event) => {
+            if (playerPosition) {
+                switch (event.key) {
+                    case 'ArrowUp':
+                        movePlayer(0, -1);
+                        break;
+                    case 'ArrowDown':
+                        movePlayer(0, 1);
+                        break;
+                    case 'ArrowLeft':
+                        movePlayer(-1, 0);
+                        break;
+                    case 'ArrowRight':
+                        movePlayer(1, 0);
+                        break;
+                }
+            }
+        });
+
+        // Play Game (Basic implementation)
+        function playGame() { 
+            //alert("{GAME_STARTED_MESSAGE_PLACEHOLDER}");
+            let gameTitle = document.getElementById('game-title').value; //get Game Title
+            let imageUrls = {
+                'P': document.getElementById('player-url').value,
+                'E': document.getElementById('enemy-url').value,
+                'E2': document.getElementById('enemy2-url').value, // Add enemy 2
+                'E3': document.getElementById('enemy3-url').value, // Add enemy 3
+                'I1': document.getElementById('item1-url').value, // Add item 1
+                '#': document.getElementById('obstacle-url').value,
+                '&': document.getElementById('goal-url').value,
+                '$': document.getElementById('gold-url').value,
+                '[': document.getElementById('wall1-url').value,
+                ']': document.getElementById('wall2-url').value
+            };
+
+            fetch('htmlTemplate.html') // Fetch the external HTML template
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.text();
+                })
+                .then(htmlTemplate => {
+                    // Customize the loaded template content
+                    htmlTemplate = htmlTemplate.replace(/<!-- gridSize -->/g, gridSize)
+                        .replace(/<!-- gridArray -->/g, JSON.stringify(gridArray))
+                        .replace(/<!-- images -->/g, JSON.stringify(imageUrls))
+                        .replace(/<!-- gameTitle -->/g, gameTitle);
+
+                    // Create a blob from the modified HTML template
+                    const blob = new Blob([htmlTemplate], { type: 'text/html' });
+                    const url = URL.createObjectURL(blob);
+
+                    // Open the generated file in a new tab
+                    const newWindow = window.open(url, '_blank');
+                    if (!newWindow) {
+                        alert("{NEW_TAB_ERROR_MESSAGE_PLACEHOLDER}");
+                    }
+                })
+                .catch(error => {
+                    console.error('There was a problem with the fetch operation:', error);
+                });
+        } //end of function playGame() { 
+
+        // Export Game as HTML file
+        function exportGame(type) {
+            var template='htmlTemplate.html';
+            if(type==3)template='htmlTemplate3d.html';
+            if(type==4)template='htmlTemplateZXBasic.bas';
+            let gameTitle = document.getElementById('game-title').value; //get Game Title
+            let imageUrls = {
+                'P': document.getElementById('player-url').value,
+                'E': document.getElementById('enemy-url').value,
+                'E2': document.getElementById('enemy2-url').value, // Add enemy 2
+                'E3': document.getElementById('enemy3-url').value, // Add enemy 3
+                'I1': document.getElementById('item1-url').value, // Add item 1
+                '#': document.getElementById('obstacle-url').value,
+                '&': document.getElementById('goal-url').value,
+                '$': document.getElementById('gold-url').value,
+                '[': document.getElementById('wall1-url').value,
+                ']': document.getElementById('wall2-url').value
+            };
+
+            fetch(template) // Fetch the external HTML template
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.text();
+                })
+                .then(htmlTemplate => {
+                    if(type==4) { //ZX Spectrum BASIC
+                        
+                        console.log(convertToBasicData(gridArray, gridSize));
+                        gridArray=convertToBasicData(gridArray, gridSize);
+                        htmlTemplate = htmlTemplate.replace(/<!-- gridArray -->/g, gridArray);
+                    }
+                    // Customize the loaded template content
+
+                    htmlTemplate = htmlTemplate.replace(/<!-- gridSize -->/g, gridSize)
+                        .replace(/<!-- gridArray -->/g, JSON.stringify(gridArray))
+                        .replace(/<!-- images -->/g, JSON.stringify(imageUrls))
+                        .replace(/<!-- gameTitle -->/g, gameTitle);
+
+                    // Create a blob from the modified HTML template
+                    const blob = new Blob([htmlTemplate], { type: 'text/html' });
+                    const url = URL.createObjectURL(blob);
+
+                    // Create a link to download the file
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = gameTitle+'.html';//'exported_game.html';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+
+                    // Open the generated file in a new tab
+                    const newWindow = window.open(url, '_blank');
+                    if (!newWindow) {
+                        alert("{NEW_TAB_ERROR_MESSAGE_PLACEHOLDER}");
+                    }
+                })
+                .catch(error => {
+                    console.error('There was a problem with the fetch operation:', error);
+                });
+        }
+
+        // Import Game from the HTML file
+
+        function importGame() {
+            const fileInput = document.getElementById('import-file');
+            const file = fileInput.files[0];
+
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const content = event.target.result;
+                    //var gridMatch = content.match(/ gridArray = (\[.*?\]);/);
+                    var gridMatch = content.match(/ gridArray = (\[\s*[\s\S]*?\]);/);
+                    //var imagesMatch = content.match(/ images = (\{.*?\});/);                    
+                    var imagesMatch = content.match(/ images = (\{[\s\S]*?\});/);                    
+
+                    if (gridMatch && imagesMatch) {
+                        gridArray = JSON.parse(gridMatch[1]);
+                        images = JSON.parse(imagesMatch[1]);
+
+                        // Populate image input fields with imported image URLs
+                        document.getElementById('player-url').value = images['P'] || '';
+                        document.getElementById('enemy-url').value = images['E'] || '';
+                        document.getElementById('enemy2-url').value = images['E2'] || ''; // Import enemy 2
+                        document.getElementById('enemy3-url').value = images['E3'] || ''; // Import enemy 3
+                        document.getElementById('item1-url').value = images['I1'] || ''; // Import item 1
+                        document.getElementById('obstacle-url').value = images['#'] || '';
+                        document.getElementById('goal-url').value = images['&'] || '';
+                        document.getElementById('gold-url').value = images['$'] || '';
+                        document.getElementById('wall1-url').value = images['['] || '';
+                        document.getElementById('wall2-url').value = images[']'] || '';
+                        
+                        playerPosition = findPlayerPosition(); // Find the new player position
+                        goldCollected = 0; // Reset gold for the imported game
+                        initGrid(); // Reinitialize the grid with the imported data
+                    } else {
+                        alert("{NO_VALID_FILES_MESSAGE_PLACEHOLDER}");
+                    }
+                };
+                reader.readAsText(file);
+            } else {
+                alert("{SELECT_FILE_MESSAGE_PLACEHOLDER}");
+            }
+        }
+
+
+        function convertToBasicData(gridArray, gridSize) {
+          const lines = [];
+          const lineNumberStart = 150;
+          const lineStep = 10;
+          const dataPerLine = 20; // 20 elements per DATA line
+
+          let lineNumber = lineNumberStart;
+
+          // Flatten the grid array
+          const flatArray = [];
+          for (let i = 0; i < gridSize; i++) {
+            for (let j = 0; j < gridSize; j++) {
+              let element = gridArray[i][j];
+
+              // Replace E1, E2, E3 with E, R, T
+              if (element === 'E1') {
+                element = 'E';
+              } else if (element === 'E2') {
+                element = 'R';
+              } else if (element === 'E3') {
+                element = 'T';
+              } else if (element === 'I1') {
+                element = 'I';
+              } else if (element === 'I2') {
+                element = 'O';
+              }
+
+              flatArray.push(element);
+            }
+          }
+
+          // Loop through the flat array in chunks of 20
+          for (let i = 0; i < flatArray.length; i += dataPerLine) {
+            const chunk = flatArray.slice(i, i + dataPerLine);
+            // Convert each element to a string with quotes and commas
+            const dataLine = chunk
+              .map(element => `"${element}"`)
+              .join(",");
+            // Create the BASIC DATA line
+            lines.push(`${lineNumber} DATA ${dataLine}`);
+            lineNumber += lineStep;
+          }
+
+          // Join all lines with comma and newline
+          return lines.join('\n');
+        }
+
+
+        // Initialize the grid when the page loads
+        window.onload = initGrid;
+    </script>
+<hr>
+        <br>
+        {SOME_DEMOS_PLACEHOLDER}:<nr>
+        <!--<li><a href=demo1c_exported_game_wolverine.html target=_blank>demo1c_exported_game_wolverine.html</a>    -->
+        <li><a href=Demo1d-wolverine-dragons.html target=_blank>Demo1d-wolverine-dragons.html</a>    
+        <li><a href=Demo1-PirateShips.html target=_blank>Demo1-PirateShips.html</a>
+        <li><a href=Demo1-Christmas.html target=_blank>Demo1-Christmas.html</a>
+        <li><a href=Demo3-ChessAdventure1.html target=_blank>Demo3-ChessAdventure1.html</a>
+        <li><a href=Demo2-NinjaTurtles.html target=_blank>Demo2-NinjaTurtles.html</a>    
+        <li><a href=Demo3d_4.006b_SpriteTranspColor-xmas251217.html target=_blank>Demo3d_4.006b_SpriteTranspColor-xmas251217.html</a>
+   <script>
+        //generate flaticon searches
+        const externalIconSearch = ["character","rpg","enemy","superhero","wall","gold","finish","forest","sea"];
+
+        const selectElement = document.getElementById("iconSelect");
+
+        // Populate the dropdown with options
+        externalIconSearch.forEach(icon => {
+            const option = document.createElement("option");
+            option.value = icon;
+            option.textContent = icon.charAt(0).toUpperCase() + icon.slice(1);
+            selectElement.appendChild(option);
+        });
+
+        const visitButton = document.getElementById("visitButton");
+        visitButton.addEventListener("click", function() {
+            const selectedIcon = selectElement.value;
+            const url = `https://www.flaticon.com/search?word=${selectedIcon}`;
+            window.open(url, '_blank');
+        });
+    </script>
+    <div id="theme-container"></div>
+    
+    <script src="age_theme_select.js"></script>
+    <script>
+       /* jsfilename='age_theme_select.js';
+        fetch(jsfilename).then(response => response.ok && document.head.appendChild(Object.assign(document.createElement('script'), { src: jsfilename }))).catch(console.error);
+        */
+    </script>
+<script src="udg_support.js"></script>    
+<script src="age_translate.js"></script>
+</body>
+</html>

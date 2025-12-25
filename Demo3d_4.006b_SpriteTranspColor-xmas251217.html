@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en"><!-- OLDer Chrome /Iron Browser version -->
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Christmas Maze Adventure</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+    body { margin: 0; overflow: hidden; background: #000; }
+    canvas { display: block; }
+    #hud {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        color: white;
+        font-family: Arial, sans-serif;
+        font-size: 20px;
+        text-shadow: 2px 2px 4px black;
+        pointer-events: none;
+        z-index: 10;
+    }
+    #title {
+        position: absolute;
+        top: 10px;
+        width: 100%;
+        text-align: center;
+        color: #fff;
+        font-size: 28px;
+        text-shadow: 3px 3px 6px #000;
+        pointer-events: none;
+        z-index: 10;
+    }
+</style>
+</head>
+<body>
+<div id="title">🎅 Christmas Maze Adventure 🎄</div>
+<div id="hud">
+    Score: <span id="score">0</span> | Gold: <span id="gold">0</span> | Enemies: <span id="enemies">0</span> | HP: <span id="hp">10</span>
+</div>
+
+<script>
+var gridSize = 20;
+var gridArray = [
+    ["$","$","]","E2","E2","E3","$","#","E3","$","$","[",".",".",".",".","I1","E3","$","$"],
+    ["$","$","]",".",".","#",".","#",".","#","E2","[",".",".",".",".","I1","E","$","$"],
+    ["E","E2","]",".",".","#",".","#",".","#","E","[",".",".",".","." ,"I1","E2","$","$"],
+    ["E","E3","E",".","#",".","#",".","#",".","[",".",".",".",".","I1","$" ,"$" ,"$","$"],
+    ["E","E2","]","E",".","#",".","#",".","#",".","[",".",".",".",".","I1","$","$","$"],
+    ["$","$","]","E",".","#","E2","#","E","#",".","[",".",".",".",".","I1","E2","$","$"],
+    ["]","]","]","E",".","#","E3","$","$","#","E3","[",".",".",".",".","I1","E","$","$"],
+    [".",".","E3",".","]","]","]","]","]","$","$","[",".",".",".",".","I1","E3","$","$"],
+    [".",".","]",".","]",".",".","E2","]",".",".",".",".","#","#","#","#","#","#","#"],
+    [".",".","]",".","]",".",".","E2","E2",".",".",".",".",".",".",".",".",".",".","."],
+    ["$",".","]",".","]","$",".","E2","]","#","#","#","#","#","#","#","#","#","#","."],
+    ["#","#","#",".","#","#","#","#","#",".",".",".",".","[",".",".",".",".",".","."],
+    ["E3","E","E2",".",".","E2","E","E3","#",".",".","#",".","[",".","#","#","#","#","#"],
+    ["I1","I1","I1","I1","I1","I1","I1","I1","#",".",".","#",".","[",".",".",".",".","$","$"],
+    [".",".",".",".",".",".",".",".","#",".",".","#",".","[","]","]","]","]",".","#"],
+    [".",".",".",".",".",".",".",".","#",".",".","#","$","$",".",".",".",".",".","#"],
+    [".",".",".",".",".",".",".",".","#",".",".","#","#","#","]","]","]","]","]","#"],
+    [".",".",".",".",".",".",".",".","#",".",".","I1","I1","#","#","#","#","#","#","#"],
+    ["[","[","[","[","P","[","[","[","#",".",".","I1","I1",".","I1","$","I1","I1","I1","$"],
+    ["]",".",".",".",".",".",".","]","#",".","I1","I1","I1","#","I1","$","E3",".",".","&"]
+];
+
+var images = {
+    "P": "https://cdn-icons-png.flaticon.com/128/6235/6235300.png",
+    "E": "https://cdn-icons-png.flaticon.com/128/2242/2242537.png",
+    "E2": "https://cdn-icons-png.flaticon.com/128/2336/2336287.png",
+    "E3": "https://cdn-icons-png.flaticon.com/128/9085/9085137.png",
+    "I1": "https://cdn-icons-png.flaticon.com/128/3835/3835774.png",
+    "#": "https://cdn-icons-png.flaticon.com/128/6285/6285672.png",
+    "&": "https://cdn-icons-png.flaticon.com/128/6235/6235222.png",
+    "$": "https://cdn-icons-png.flaticon.com/128/9004/9004933.png",
+    "[": "https://cdn-icons-png.flaticon.com/128/2299/2299172.png",
+    "]": "https://cdn-icons-png.flaticon.com/128/9127/9127408.png"
+};
+var enableFights=false;
+var scene, camera, renderer, clock;
+var playerPosition = findPlayerPosition();
+var goldCollected=0;
+var enemiesKilled=0;
+var score=0;
+var hitPoints=10;
+var cameraAngle=0;
+var objectMap={};
+var hud={
+    score: document.getElementById('score'),
+    gold: document.getElementById('gold'),
+    enemies: document.getElementById('enemies'),
+    hp: document.getElementById('hp')
+};
+
+// SpriteMaterial for billboards (transparent background)
+var spriteMaterialBase = new THREE.SpriteMaterial({
+    transparent: true,
+    depthWrite: false
+});
+
+init();
+animate();
+
+function init() {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87ceeb);
+
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Snowy floor
+    var floorGeometry = new THREE.PlaneGeometry(gridSize * 2, gridSize * 2);
+    var floorMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    var floor = new THREE.Mesh(floorGeometry, floorMaterial);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -0.01;
+    scene.add(floor);
+
+    createMaze();
+    clock = new THREE.Clock();
+    updateCameraPosition();
+
+    window.addEventListener('resize', onWindowResize);
+    document.addEventListener('keydown', onKeyDown);
+    updateHUD();
+}
+
+function createMaze() {
+    var loader = new THREE.TextureLoader();
+
+    for (var i=0; i<gridSize; i++) {
+        for (var j=0; j<gridSize; j++) {
+            var cell = gridArray[i][j];
+            if (cell==='P') continue;
+
+            var object;
+
+            if (cell==='#') {
+                var material = new THREE.MeshBasicMaterial({ map: loader.load(images['#']) });
+                var geometry = new THREE.BoxGeometry(1,1,1);
+                object = new THREE.Mesh(geometry, material);
+                object.position.set(j+0.5, 0.5, i+0.5);
+            } else if (['E','E2','E3','$','I1','&','[',']'].indexOf(cell) >=0) {
+                var texture = loader.load(images[cell]);
+                var material = spriteMaterialBase.clone();
+                material.map = texture;
+                object = new THREE.Sprite(material);
+                object.position.set(j+0.5, 0.5, i+0.5);
+                object.scale.set(0.8, 0.8, 0.8);
+            } else {
+                continue;
+            }
+
+            scene.add(object);
+            objectMap[i + "," + j] = object;
+        }
+    }
+}
+
+function findPlayerPosition() {
+    for (var row=0; row<gridArray.length; row++) {
+        for (var col=0; col<gridArray[row].length; col++) {
+            if (gridArray[row][col]==='P') return { x: col, y: row };
+        }
+    }
+    return { x:0, y:0 };
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+    var time = clock.getElapsedTime();
+    // camera.position.y = 0.5 + Math.sin(time*3)*0.03; // old comment
+    camera.position.y=0.8 + Math.sin(3)*0.03;
+    renderer.render(scene, camera);
+}
+
+function onWindowResize() {
+    camera.aspect=window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+function onKeyDown(e) {
+    var moveDistance=0.2;
+    var newX=playerPosition.x + 0.5;
+    var newZ=playerPosition.y + 0.5;
+    var key = e.key.toLowerCase();
+
+    if (key==='s') {
+        newX += Math.sin(cameraAngle)*moveDistance;
+        newZ += Math.cos(cameraAngle)*moveDistance;
+    } else if (key==='w') {
+        newX -= Math.sin(cameraAngle)*moveDistance;
+        newZ -= Math.cos(cameraAngle)*moveDistance;
+    } else if (key==='q') {
+        cameraAngle += 0.15;
+        updateCameraPosition();
+        return;
+    } else if (key==='e') {
+        cameraAngle -= 0.15;
+        updateCameraPosition();
+        return;
+    } else if (key==='a') {
+        newX -= Math.cos(cameraAngle)*moveDistance;
+        newZ += Math.sin(cameraAngle)*moveDistance;
+    } else if (key==='d') {
+        newX += Math.cos(cameraAngle)*moveDistance;
+        newZ -= Math.sin(cameraAngle)*moveDistance;
+    } else {
+        return;
+    }
+
+    if (isValidPosition({ x: newX, z: newZ })) {
+        playerPosition.x = newX - 0.5;
+        playerPosition.y = newZ - 0.5;
+        updateCameraPosition();
+        collectItemsAndEnemies();
+    }
+}
+
+function isValidPosition(pos) {
+    var x = Math.floor(pos.x);
+    var z = Math.floor(pos.z);
+    if (x<0 || x>=gridSize || z<0 || z>=gridSize) return false;
+    return gridArray[z][x]!=='#';
+}
+
+function updateCameraPosition() {
+    camera.position.set(playerPosition.x+0.5, 0.5, playerPosition.y+0.5);
+    camera.rotation.y = cameraAngle;
+}
+
+function collectItemsAndEnemies() {
+    var cellX = Math.floor(playerPosition.x);
+    var cellY = Math.floor(playerPosition.y);
+    var cell = gridArray[cellY] && gridArray[cellY][cellX];
+    if (!cell || cell==='.') return;
+
+    if (cell==='$$') {
+        goldCollected++;
+        score++;
+    } else if (cell==='I1') {
+        goldCollected+=5;
+        score+=5;
+    } else if (['E','E2','E3'].indexOf(cell)>=0) {
+        if (!engageInFight()) {
+            alert("You were defeated! Game Over.");
+            resetGame();
+            return;
+        }
+        enemiesKilled++;
+        score+=5;
+    } else if (cell==='&') {
+        alert("🎅 You reached Santa's sleigh! \nFinal Score: "+score+"\nGold: "+goldCollected+"\nEnemies Defeated: "+enemiesKilled+"\nMerry Christmas! 🎄");
+        resetGame();
+        return;
+    }
+
+    gridArray[cellY][cellX]='.';
+    removeObject(cellY, cellX);
+    updateHUD();
+}
+
+function updateHUD() {
+    hud.score.textContent=score;
+    hud.gold.textContent=goldCollected;
+    hud.enemies.textContent=enemiesKilled;
+    hud.hp.textContent=hitPoints;
+}
+
+function removeObject(z,x) {
+    var key=z + "," + x;
+    if (objectMap[key]) {
+        scene.remove(objectMap[key]);
+        delete objectMap[key];
+    }
+}
+
+function engageInFight() {
+    var enemyDamage = Math.floor(Math.random()*2)+1;
+    if (enableFights) hitPoints -= enemyDamage;
+    updateHUD();
+    return hitPoints>0;
+}
+
+function resetGame() {
+    location.reload();
+}
+</script>
+</body>
+</html>

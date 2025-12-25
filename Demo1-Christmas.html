@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<!--
+Template
+v0.6d__v003d9-250407e Added I1,E2,E3
+v0.6c_v003d8 -250407d Game title placeholder
+v0.6bv003d -250407b Double Size button , WASD
+v0.5v003d - TEMPLATE added HP,Score,stats
+v003d2 - CSS Add same colors as the DevEnviroment
+v003d1 - external html template
+
+
+ToDo:
+-Enemy fights
+-Items that add to stats
+
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyGameTitle</title>
+    <style>
+        body { font-family: monospace; background: #f4f4f4; }
+        #grid { display: grid; grid-template-columns: repeat(20, 20px); }
+        .cell { width: 20px; height: 20px; text-align: center; border: 1px solid #ccc; cursor: pointer; }
+        /*.player { background: lightblue; }
+        .enemy { background: lightcoral; }
+        .obstacle { background: lightgray; }
+        .goal { background: lightgreen; }
+        .gold { background: gold; }
+        .wall1 { background: darkgray; }
+        .wall2 { background: gray; } */
+        img { width: 100%; height: 100%; }
+        #stats { margin-top: 20px; }
+        #control-panel { margin: 20px 0; }
+        button { cursor: pointer; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>MyGameTitle</h1>
+
+    <div id="grid"></div>
+    <div id="stats">
+        <p>Score: <span id="score">0</span></p>
+        <p>Gold: <span id="gold">0</span></p>
+        <p>Hit Points: <span id="hitPoints">10</span></p>
+            <div id="control-panel">
+        <button id="sizeToggle">Double Size</button>
+    </div>
+    </div>
+    <script>
+        const statFight = true; // Flag to determine if stats are used in fights
+        const gridSize = 20;  // Placeholder for grid size
+        let gridArray = [["[","[","[","[","[","[","[","[","[","[","[","[","[","[","[","[","[","[","[","["],["[","&",".",".","[",".",".",".",".",".",".",".",".",".","[",".",".",".",".","["],["[","$","$","$","[",".",".",".",".",".",".",".",".",".","[",".",".","$","$","["],["[","$","$","$","[",".",".",".",".",".",".",".",".",".","[","E2",".","$","$","["],["[","$","$","$","E3","E",".",".",".",".",".",".",".","E",".","E2",".","$","$","["],["[","[","[","[","[","#","#","#","#",".","#","#","#","#","[",".",".",".","$","["],["[",".",".",".",".","#","#","#","#",".","#","#","#","#","[",".",".",".","$","["],["[",".",".",".",".","#","#","#","#",".",".","E2",".",".","[","[","[","[","[","["],["[",".",".",".",".","#","#","#","#","#","#","#","#",".","#","#","#","#","#","["],["[",".",".",".",".",".",".",".","$",".",".",".",".","E",".",".",".",".",".","["],["[",".",".",".",".","E2",".",".",".",".",".",".",".",".",".",".",".",".",".","["],["[",".",".",".",".",".",".",".",".",".","$",".","$",".","$","P",".",".",".","["],["[","[","[","[","[",".",".","$",".",".",".",".",".",".",".",".",".","$",".","]"],["[",".",".","E3",".","E",".",".",".",".",".",".",".",".",".",".",".",".",".","["],["[",".","E",".","[",".","E",".",".",".",".",".","E",".",".",".",".",".",".","["],["[",".",".",".","[",".",".",".",".",".",".",".",".",".",".","[","[","[","E","["],["]","$","$","$","[",".",".",".",".",".",".",".",".",".",".","[","E","E","E","["],["]","]","]","]","]","[","[","[","]",".",".","E",".",".",".","[","E","E","E","["],["[","$","$","E","E","$","E","E",".","E3",".",".",".",".",".","[","$","$","$","["],["[","[","[","[","[","[","[","[","[","[","[","[","[","[","[","[","[","[","[","["]];   // Placeholder for grid array
+        let images = {"P":"https://cdn-icons-png.flaticon.com/128/6235/6235300.png","E":"https://cdn-icons-png.flaticon.com/128/2242/2242537.png","E2":"https://cdn-icons-png.flaticon.com/128/2336/2336287.png","E3":"https://cdn-icons-png.flaticon.com/128/9085/9085137.png","I1":"https://cdn-icons-png.flaticon.com/128/3835/3835774.png","#":"https://cdn-icons-png.flaticon.com/128/6285/6285672.png","&":"https://cdn-icons-png.flaticon.com/128/6235/6235222.png","$":"https://cdn-icons-png.flaticon.com/128/9004/9004933.png","[":"https://cdn-icons-png.flaticon.com/128/2299/2299172.png","]":"https://cdn-icons-png.flaticon.com/128/9127/9127408.png"};          // Placeholder for image paths
+        let playerPosition = findPlayerPosition();
+        let goldCollected = 0;
+        let enemiesKilled = 0;
+        let score = 0;
+        let hitPoints = 10; // Starting hit points
+        const attack = 2; // Static attack value for player
+        const defense = 1; // Static defense value for player
+        const enemyAttack = 1; // Static attack value for enemy
+        const enemyDefense = 0; // Static defense value for enemy
+        let isDoubleSize = false; // Flag to track the size state
+        let haveItem1=false;
+
+        function findPlayerPosition() {
+            for (let row = 0; row < gridSize; row++) {
+                for (let col = 0; col < gridSize; col++) {
+                    if (gridArray[row][col] === 'P') {
+                        return { x: col, y: row };
+                    }
+                }
+            }
+            return null;
+        }
+
+        const gridElement = document.getElementById('grid');
+        const scoreElement = document.getElementById('score');
+        const goldElement = document.getElementById('gold');
+        const hitPointsElement = document.getElementById('hitPoints');
+        initGrid();
+
+        function initGrid() {
+            gridElement.innerHTML = '';
+            const cellSize = isDoubleSize ? '35px' : '20px'; // Determine current cell size
+            gridElement.style.gridTemplateColumns = `repeat(${gridSize}, ${cellSize})`; // Set grid template column size
+
+            for (let row = 0; row < gridSize; row++) {
+                for (let col = 0; col < gridSize; col++) {
+                    const cell = document.createElement('div');
+                    const symbol = gridArray[row][col];
+                    const imgSrc = images[symbol] || null;
+                    cell.innerHTML = imgSrc ? '<img src="' + imgSrc + '" alt="' + symbol + '">' : symbol;
+                    cell.className = 'cell ' + getClassNameForSymbol(symbol);
+                    cell.style.width = cellSize; // Set the width of the cell
+                    cell.style.height = cellSize; // Set the height of the cell
+                    gridElement.appendChild(cell);
+                }
+            }
+            if (playerPosition) {
+                updatePlayerCell();
+            }
+            updateStats();
+        }
+
+        function getClassNameForSymbol(symbol) {
+            switch (symbol) {
+                case 'P': return 'player';
+                case 'E': return 'enemy';
+                case 'E2': return 'enemy2'; // enemy 2 class
+                case 'E3': return 'enemy3'; // enemy 3 class
+                case 'I1': return 'item1'; // item1 class
+                case '#': return 'obstacle';
+                case '&': return 'goal';
+                case '$': return 'gold';
+                case '[': return 'wall1';
+                case ']': return 'wall2';
+                default: return '';
+            }
+        }
+
+
+        function updatePlayerCell() {
+            const cell = gridElement.children[playerPosition.y * gridSize + playerPosition.x];
+            cell.innerHTML = images['P'] ? '<img src="' + images['P'] + '" alt="P">' : 'P';
+            cell.className = 'cell player';
+        }
+
+        function updateStats() {
+            scoreElement.innerText = score;
+            goldElement.innerText = goldCollected;
+            hitPointsElement.innerText = hitPoints;
+        }
+
+        function engageInFight() {
+            const playerDamage = Math.max(0, attack - enemyDefense);
+            const enemyDamage = Math.max(0, enemyAttack - defense);
+            let playerHitPoints = hitPoints; // Track the player's hit points during the fight
+            let enemyHitPoints = 3; // Example enemy hitpoints 
+
+            // Simulate fight
+            while (playerHitPoints > 0 && enemyHitPoints > 0) {
+                enemyHitPoints -= playerDamage;
+                if (enemyHitPoints <= 0) {
+                    return true; // Player wins
+                }
+                playerHitPoints -= enemyDamage;
+            }
+            // If the loop ends, the player has run out of hit points
+            return playerHitPoints > 0; // Returns false if player loses (hitPoints <= 0)
+        }
+
+        function movePlayer(dx, dy) {
+            const newX = playerPosition.x + dx;
+            const newY = playerPosition.y + dy;
+            if (newX >= 0 && newX < gridSize && newY >= 0 && newY < gridSize) {
+                const targetCell = gridArray[newY][newX];
+
+                // Check for enemy engagement
+                if (targetCell === 'E' || targetCell === 'E2' || targetCell === 'E3') {
+                    const playerWins = engageInFight(); // Function to determine if the player wins the fight
+                    if (!playerWins) {
+                        alert("You lost the fight! Game Over.");
+                        resetGame();
+                        return;
+                    } else {
+                        // Player wins - update the score
+                        enemiesKilled++;
+                        score += 5; // Gain points for defeating an enemy
+
+                        // Remove enemy from the grid but keep the player in the same position
+                        gridArray[newY][newX] = '.'; // Replace enemy with a dot
+                        // No need to change playerPosition.x and playerPosition.y
+                        initGrid(); // Refresh the grid to reflect changes
+                    }
+                }
+
+                // Handle movement for other types of cells
+                if (targetCell === '.' || targetCell === '&' || targetCell === '$' || targetCell === 'I1') {
+                    if (targetCell === '$') {
+                        goldCollected++;
+                        score++;
+                    }
+                    if (targetCell === 'I1') {
+                        score=score+5;
+                        haveItem1=true; console.log("haveItem1="+haveItem1);
+                    }
+
+
+                    // Update grid with player's position
+                    gridArray[playerPosition.y][playerPosition.x] = '.'; // Leave previous cell empty
+                    playerPosition.x = newX;
+                    playerPosition.y = newY;
+                    gridArray[playerPosition.y][playerPosition.x] = 'P'; // Move player to new position
+                    initGrid(); // Refresh the grid after moving
+
+                    if (targetCell === '&') { // Updated to use '&' for the goal
+                        alert("You win! You collected " + goldCollected + " gold and your score is " + score + ".");
+                        if (confirm("Do you want to restart the game?")) {
+                            resetGame();
+                        }
+                    }
+                }
+            }
+        }
+
+        function resetGame() {
+            goldCollected = 0;
+            enemiesKilled = 0;
+            score = 0;
+            hitPoints = 10; // Reset hit points
+            location.reload(); // Reload the game
+        }
+
+        // Function to toggle view size of grid cells
+        function toggleCellSize() {
+            isDoubleSize = !isDoubleSize;  // Toggle the size state
+            initGrid();  // Re-initialize the grid with the new cell size
+        }
+
+        // Set up event listener for the new button
+        document.getElementById('sizeToggle').addEventListener('click', toggleCellSize);
+		document.addEventListener('keydown', (event) => {
+		    if (playerPosition) {
+		        const key = event.key.toLowerCase(); // Convert the key to lowercase
+		        switch (key) {
+		            case 'arrowup':
+		            case 'w': // Move up with 'W' or 'w'
+		                movePlayer(0, -1);
+		                break;
+		            case 'arrowdown':
+		            case 's': // Move down with 'S' or 's'
+		                movePlayer(0, 1);
+		                break;
+		            case 'arrowleft':
+		            case 'a': // Move left with 'A' or 'a'
+		                movePlayer(-1, 0);
+		                break;
+		            case 'arrowright':
+		            case 'd': // Move right with 'D' or 'd'
+		                movePlayer(1, 0);
+		                break;
+		        }
+		    }
+		});
+    </script>
+</body>
+</html>
+
+    </script>
+</body>
+</html>
